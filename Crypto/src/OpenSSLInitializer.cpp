@@ -74,16 +74,14 @@ OpenSSLInitializer::~OpenSSLInitializer()
 void OpenSSLInitializer::initialize()
 {
 	Poco::FastMutex::ScopedLock lock(_mutex);
-	
 	if (++_rc == 1)
 	{
 #if OPENSSL_VERSION_NUMBER >= 0x0907000L
-		OPENSSL_config(NULL);
+		// OPENSSL_config(NULL);  removed by JB an 04.06.2013 due to crash on Win7 PC
 #endif
 		SSL_library_init();
 		SSL_load_error_strings();
 		OpenSSL_add_all_algorithms();
-		
 		char seed[SEEDSIZE];
 		RandomInputStream rnd;
 		rnd.read(seed, sizeof(seed));
@@ -92,14 +90,7 @@ void OpenSSLInitializer::initialize()
 		int nMutexes = CRYPTO_num_locks();
 		_mutexes = new Poco::FastMutex[nMutexes];
 		CRYPTO_set_locking_callback(&OpenSSLInitializer::lock);
-#ifndef POCO_OS_FAMILY_WINDOWS
-// Not needed on Windows (see SF #110: random unhandled exceptions when linking with ssl).
-// https://sourceforge.net/p/poco/bugs/110/
-//
-// From http://www.openssl.org/docs/crypto/threads.html :
-// "If the application does not register such a callback using CRYPTO_THREADID_set_callback(), 
-//  then a default implementation is used - on Windows and BeOS this uses the system's 
-//  default thread identifying APIs"
+#ifndef POCO_OS_FAMILY_WINDOWS // SF# 1828231: random unhandled exceptions when linking with ssl
 		CRYPTO_set_id_callback(&OpenSSLInitializer::id);
 #endif
 		CRYPTO_set_dynlock_create_callback(&OpenSSLInitializer::dynlockCreate);
@@ -118,9 +109,6 @@ void OpenSSLInitializer::uninitialize()
 		EVP_cleanup();
 		ERR_free_strings();
 		CRYPTO_set_locking_callback(0);
-#ifndef POCO_OS_FAMILY_WINDOWS
-		CRYPTO_set_id_callback(0);
-#endif
 		delete [] _mutexes;
 	}
 }

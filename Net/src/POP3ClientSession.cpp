@@ -298,5 +298,8 @@ bool POP3ClientSession::isPositive(const std::string& response)
 	return response.length() > 0 && response[0] == '+';
 }
 
+DialogSocket POP3ClientSession::getSocket() {
+	return _socket;
+}
 
 } } // namespace Poco::Net
